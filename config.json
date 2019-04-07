@@ -1,0 +1,10 @@
+{
+    "Clarifai": {
+        "APIKey": "",
+        "ModelURL": "https://api.clarifai.com/v2/models/09254ed6e47e49e6bf3cad1b66e7b3c9/versions/6a1fd41dc9284dffa7880605bbf76ff3/outputs"
+
+    },
+    "BatchSize": 1,
+    "RtspFeed": "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov",
+    "ScaleHeight": 300
+}
