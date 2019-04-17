@@ -2,7 +2,7 @@ package clarifai
 
 // Service interface for Clarifai
 type Service interface {
-	PredictByBytes(timestamp int64, b64Str string) (*FrameInfo, error)
+	PredictByBytes(timestamp int64, b64Str string, origB64Str string) (*FrameInfo, error)
 }
 
 type inputs struct {

@@ -75,7 +75,7 @@ func buildRequestByBytes(timestamp int64, bStr string) inputs {
 	return inputs
 }
 
-func (a *app) PredictByBytes(timestamp int64, b64Str string) (*FrameInfo, error) {
+func (a *app) PredictByBytes(timestamp int64, b64Str string, origB64Str string) (*FrameInfo, error) {
 	payload := buildRequestByBytes(timestamp, b64Str)
 
 	reqStr, err := json.Marshal(payload)
@@ -95,6 +95,8 @@ func (a *app) PredictByBytes(timestamp int64, b64Str string) (*FrameInfo, error)
 		fmt.Println("request error:", err)
 		return nil, err
 	}
+
+	//fmt.Fprintf(os.Stderr, "did pred in time %s\n", time.Since(now))
 	fmt.Println("response elaspesd time: ", time.Since(now))
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
@@ -111,7 +113,7 @@ func (a *app) PredictByBytes(timestamp int64, b64Str string) (*FrameInfo, error)
 	}
 
 	if predictResp.Status.Code != 10000 {
-		fmt.Printf("%s\n", predictResp.Status.Description)
+		//fmt.Printf("%s\n", predictResp.Status.Description)
 		return nil, errors.New("Clarifai status code something other than 10000")
 	}
 
@@ -124,7 +126,7 @@ func (a *app) PredictByBytes(timestamp int64, b64Str string) (*FrameInfo, error)
 		fmt.Println(string(out))
 	*/
 
-	frameInfo := ParseResponse(b64Str, &predictResp)
+	frameInfo := ParseResponse(origB64Str, &predictResp)
 
 	return frameInfo, nil
 }
