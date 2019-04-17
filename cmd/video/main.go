@@ -42,16 +42,13 @@ func home(w http.ResponseWriter, r *http.Request) {
 }
 
 func render(w http.ResponseWriter, r *http.Request) {
-
 	conn, _ := upgrader.Upgrade(w, r, nil)
 	for {
 		fmt.Printf("(render)queued items: %d\n", len(framesData))
 		if err := conn.WriteJSON(<-framesData); err != nil {
 			return
 		}
-
 	}
-
 }
 
 func setupRoutes() {
@@ -66,8 +63,9 @@ func scaleWidth(w, h, scaledH float64) int {
 
 // FrameInput contains the image as a base64 encoded string and other metadata to help maintain order
 type frameInput struct {
-	Time   int64
-	ImgStr string
+	time         int64
+	scaledImgStr string
+	origImgStr   string
 }
 
 func pullFrames() {
@@ -94,17 +92,20 @@ func getFrames() {
 	i := 0
 	for {
 		img := <-rawFrames
-		fmt.Println("in getFrames")
 
 		scaledW := scaleWidth(float64(img.Size()[1]), float64(img.Size()[0]), float64(scaledH))
+		originalImgBuf, err := gocv.IMEncode(gocv.JPEGFileExt, img)
+		if err != nil {
+			fmt.Println("Error encoding img")
+		}
 		gocv.Resize(img, &img, image.Point{scaledW, scaledH}, 0, 0, gocv.InterpolationArea)
 		buf, err := gocv.IMEncode(gocv.PNGFileExt, img)
 
 		if err != nil {
 			fmt.Println("Error encoding img")
 		}
+		bStrs = append(bStrs, frameInput{time.Now().UnixNano(), base64.StdEncoding.EncodeToString(buf), base64.StdEncoding.EncodeToString(originalImgBuf)})
 
-		bStrs = append(bStrs, frameInput{time.Now().UnixNano(), base64.StdEncoding.EncodeToString(buf)})
 		i++
 
 		if i == batchSize {
@@ -117,13 +118,13 @@ func getFrames() {
 
 func process(fi frameInput, wg *sync.WaitGroup) {
 	start := time.Now()
-	fmt.Printf("started Goroutine %d at time %s\n", fi.Time, start.Format(time.RFC3339))
-	frInfo, err := clarifaiService.PredictByBytes(fi.Time, fi.ImgStr)
+	fmt.Printf("started Goroutine %d at time %s\n", fi.time, start.Format(time.RFC3339))
+	frInfo, err := clarifaiService.PredictByBytes(fi.time, fi.scaledImgStr, fi.origImgStr)
 	end := time.Now()
 	if err != nil {
 		fmt.Println("clarifai service error:", err)
 	}
-	fmt.Printf("Goroutine %d at time %v  ended\n", fi.Time, end.Format(time.RFC3339))
+	fmt.Printf("Goroutine %d at time %v  ended\n", fi.time, end.Format(time.RFC3339))
 	fmt.Println("go routine elaspesd time: ", time.Since(start))
 	if frInfo == nil {
 		wg.Done()
@@ -136,7 +137,6 @@ func process(fi frameInput, wg *sync.WaitGroup) {
 func doBatches() {
 	for {
 		frInputs := <-frames
-		//fmt.Printf("framesInfo length : %v\n", len(frInputs))
 		var wg sync.WaitGroup
 		for _, fi := range frInputs {
 			wg.Add(1)
@@ -149,18 +149,6 @@ func doBatches() {
 		fmt.Println("All go routines finished executing")
 		fmt.Printf("(doBatches)queued items: %d\n", len(framesData))
 	}
-}
-
-func retry() {
-	var err error
-	captureDevice, err = gocv.OpenVideoCapture(feed)
-	if err != nil {
-		fmt.Printf("retry error opening capture device: %v\n", feed)
-		return
-	}
-
-	go getFrames()
-	//go doBatches()
 }
 
 func main() {
